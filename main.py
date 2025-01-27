@@ -195,7 +195,7 @@ def play_round(running, players):
 def main():
     players = []
     player1 = Player(x=580, y=230, direction=0.8, color="orange")
-    player2 = Player(x=1020, y=670, direction=2.5, color="blue")
+    player2 = Player(x=1020, y=670, direction=-2.37, color="blue")
     players.extend([player1, player2])
     play_round(running=True, players=players)
 
