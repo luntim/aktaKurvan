@@ -1,4 +1,4 @@
-# TODO: lägg till 1 mer spelare och välja hur många spelare som ska spela och ge dem en annan färg.
+# TODO: lägg till 2 mer spelare och välja hur många spelare som ska spela och ge dem en annan färg.
 # TODO: Launcha det online med multiplayer.
 # TODO: Testa det med discord folk.
 
@@ -8,11 +8,15 @@ import math
 import random
 import time
 
+from network import Network
+
 import pygame.draw_py
 
 pygame.init()
 
 screen = pygame.display.set_mode((1600, 900))
+border = [(400, 1), (1200, 1), (1200, 899), (400, 899)]
+score_to_win = 10
 
 class Player:
     def __init__ (self, x, y, direction, color):
@@ -60,18 +64,30 @@ class Player:
         self.target_x = self.x + math.cos(self.direction)
         self.target_y = self.y + math.sin(self.direction)
 
-    def handle_input(self, keys, dt, index):
+    def handle_input(self, keys, dt):
         #player 1
-        if index == 0:
-            if keys[pygame.K_a]:
+        if self.color == "orange":
+            if keys[pygame.K_1]:
                 self.turn(-1, dt)
-            if keys[pygame.K_d]:
+            if keys[pygame.K_2]:
                 self.turn(1, dt)
         #player 2
-        if index == 1:
+        if self.color == "blue":
             if keys[pygame.K_LEFT]:
                 self.turn(-1, dt)
             if keys[pygame.K_RIGHT]:
+                self.turn(1, dt)
+                #player 2
+        if self.color == "green":
+            if keys[pygame.K_COMMA]:
+                self.turn(-1, dt)
+            if keys[pygame.K_PERIOD]:
+                self.turn(1, dt)
+                #player 2
+        if self.color == "red":
+            if keys[pygame.K_z]:
+                self.turn(-1, dt)
+            if keys[pygame.K_x]:
                 self.turn(1, dt)
 
 
@@ -106,101 +122,131 @@ class Player:
                 return True
 
 
+    def move(self, dt, trails):
+            keys = pygame.key.get_pressed()
+            self.handle_input(keys, dt)
+            self.target_x = self.x + math.cos(self.direction) * 100 
+            self.target_y = self.y + math.sin(self.direction) * 100 
+        
+            if self.jumping == False:
+                self.jump()
+
+            self.update(dt)
+
+            circleRect = self.draw(screen, dt)
+
+            if circleRect is not None:
+                if self.check_border_collision(border) == True or self.check_trail_collision(trails) == True:
+                    self.dead = True
+                else:
+                    return circleRect
+
+
+
 def player_won_the_game(player):
     # display score and go to a winner screen or smth
     print(f"{player.color} won the game!!!")
     time.sleep(3)
 
-def give_all_players_points(players):
+def give_all_players_alive_points(players):
     for player in players:
         if player.dead == False:
-            player.score += 10
+            player.score += 1
 
 def is_game_over(players):
     for player in players:
-        if player.score >= (len(players) * 10):
+        if player.score >= score_to_win:
             player_won_the_game(player)
-            return True
-     
-    return False
+            pygame.quit()
+            sys.exit()
 
 
-def display_score(players):
+def draw_board(players):
+    screen.fill("black")
+    pygame.draw.polygon(screen, "yellow", border, 3)
+
     increment = 5
-    for index, player in enumerate(players):
+    for player in players:
         font = pygame.font.Font("freesansbold.ttf", 25)
-        text = font.render(f"player{index + 1}:     {player.score}", True, player.color, "black")
+        text = font.render(f"{player.color}:     {player.score}", True, player.color, "black")
         textRect = text.get_rect()
         textRect.topleft = (1205, 250 + increment)
         screen.blit(text, textRect)
         increment += 30
+        
+    pygame.display.flip()
 
 def reset_players(players):
     for player in players:
         player.x, player.y = player.spawn
         player.dead = False
+        player.speed = 55
 
     return players
 
-def play_round(running, players):
-    pygame.mouse.set_visible(False)
-    clock = pygame.time.Clock()
-    trails = []
-    playersDead = 0
 
-    screen.fill("black")
-    display_score(players)
-    border = [(400, 1), (1200, 1), (1200, 899), (400, 899)]
-    pygame.draw.polygon(screen, "yellow", border, 3)
+def read_pos(str):
+    str = str.split(",")
+    return float(str[0]), float(str[1])
 
-    while running:
-        dt = clock.tick(144) / 1000
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
 
-        for index, player in enumerate(players):
-            keys = pygame.key.get_pressed()
-            player.handle_input(keys, dt, index)
-            player.target_x = player.x + math.cos(player.direction) * 100 
-            player.target_y = player.y + math.sin(player.direction) * 100 
-        
-            if player.jumping == False:
-                player.jump()
+def make_pos(tup):
+    return str(tup[0]) + "," + str(tup[1])
 
-            player.update(dt)
 
-            circleRect = player.draw(screen, dt)
-
-            if circleRect is not None:
-                if player.check_border_collision(border) == True or player.check_trail_collision(trails) == True:
-                    player.dead = True
-                    playersDead += 1
-                    give_all_players_points(players)
-                    if len(players) - playersDead == 1:
-                        running = False
-                else:
-                    trails.append(circleRect)
-
-        pygame.display.flip()
-
-    if is_game_over(players):
-        return
-
-    players = reset_players(players)
-    time.sleep(3)
-    play_round(running=True, players=players)
 
 
 def main():
+    #n = Network()
+    #startpos = read_pos(n.getPos())
     players = []
     player1 = Player(x=580, y=230, direction=0.8, color="orange")
     player2 = Player(x=1020, y=670, direction=-2.37, color="blue")
-    players.extend([player1, player2])
-    play_round(running=True, players=players)
+    player3 = Player(x=1020, y=230, direction=2.37, color="green")
+    player4 = Player(x=580, y=670, direction=-0.8, color="red")
+    players.extend([player1, player2, player3, player4])
 
-    pygame.quit()
-    sys.exit()
+    gameLoop = True
+    while gameLoop:
+
+        pygame.mouse.set_visible(True)
+        clock = pygame.time.Clock()
+
+        run = True
+        trails = []
+        playersDead = 0
+
+        draw_board(players)
+        is_game_over(players)
+    
+        while run:
+            dt = clock.tick(60) / 1000
+            """  player2Pos = read_pos(n.send(make_pos((player1.x, player1.y))))
+            player2.x = player2Pos[0]
+            player2.y = player2Pos[1]
+            print(f"Received position: {player2Pos}") """
+        
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    gameLoop = False
+
+            for player in players:
+                circleRect = player.move(dt, trails)
+                if circleRect is not None:
+                    trails.append(circleRect)
+
+                if player.dead == True and player.speed is not 0:
+                    playersDead += 1
+                    print("playersDead: ", playersDead)
+                    player.speed = 0
+                    give_all_players_alive_points(players) 
+                    if len(players) - playersDead == 1:
+                        players = reset_players(players)
+                        time.sleep(3)
+                        run = False
+                        break
+
+            pygame.display.flip()
 
 if __name__ == "__main__":
     main()
