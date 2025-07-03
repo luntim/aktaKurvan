@@ -3,3 +3,5 @@ pip install -r requirements.txt
 
 orange moves with "A" + "D"
 blue moves with "LEFT" + "RIGHT"
+
+Yes the collision detection is utter garbage.
